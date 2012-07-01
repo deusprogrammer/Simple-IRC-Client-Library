@@ -1,3 +1,76 @@
-TODO
-   Replace simSock with new universal version
-   to allow Linux to use this library too.
+//TODO
+//   Replace simSock with new universal version
+//   to allow Linux to use this library too.
+
+//USAGE
+
+#include <stdio.h>
+#include "simIrc.h"
+
+//In this example I log the output to a file
+void ReplyTest(IRC_Reply* reply)
+{
+	FILE* fp = fopen("log.txt", "w+");
+
+	fwrite(reply->getMessage(), 1, strlen(reply->getMessage()), fp);
+
+	fclose(fp);
+}
+
+//In this example my bot simply insults everyone when I join a channel
+void BotTest(LPVOID lpargs)
+{
+	Bot_Struct* bs;
+	IRC_Reply* reply;
+	IRC_Connection* conn;
+
+	//Unpack bot struct
+	bs = (Bot_Struct*)lpargs;
+	reply = bs->reply;
+	conn = bs->conn;
+
+	//Do whatever you want to do here with the data returned by the server
+	if(strcmpi(reply->getCommand(), "join")==0)
+	{
+		Sleep(100);
+		conn->SendCommand("FUCK EVERYONE!");
+	}
+}
+
+int main(int argc, char* argv[])
+{
+	IRC_Connection* irc;
+	char data[1024];
+
+	if(argc<6)
+	{
+		printf("Invalid usage: irc [ip address] [port] [nickname] [username] [realname] \n");
+		exit(0);
+	}
+
+	InitializeWS();
+
+	if(argc==7)
+		irc = new IRC_Connection(argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+	else if(argc==6)
+		irc = new IRC_Connection(argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
+
+	//Setup the hooks for bot functionality and reply handling
+	irc->SetBotHook(BotTest);
+	irc->SetReplyHook(ReplyTest);
+
+	//Connect to the IRC chat server
+	irc->Connect();
+
+	//While connected prompt user for input and send to server.
+	while(irc->isConnected())
+	{
+		fgets(data, 1024, stdin);
+		chop(data);
+		irc->SendCommand(data);
+	}
+
+	CleanupWS();
+
+	return 0;
+}
